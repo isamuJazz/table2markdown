@@ -351,6 +351,7 @@ footer {
     color: white;
     user-select: none;
     z-index: 10;
+    pointer-events: none;
 }
 
 .cell-grip::before {
@@ -366,6 +367,7 @@ footer {
 #editableTable th:hover .cell-grip,
 #editableTable td:hover .cell-grip {
     opacity: 1;
+    pointer-events: auto;
 }
 
 /* Hide grip when cell is focused */
@@ -403,6 +405,7 @@ footer {
     display: flex;
     align-items: center;
     justify-content: center;
+    pointer-events: none;
 }
 
 .align-btn-left {
@@ -418,6 +421,7 @@ footer {
 /* Show alignment buttons only on headers */
 #editableTable th:hover .align-btn {
     opacity: 1;
+    pointer-events: auto;
 }
 
 /* Hide alignment buttons on data cells */
