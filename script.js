@@ -126,9 +126,7 @@ function renderTable() {
             const grip = createCellGrip(rowIndex, colIndex);
             td.appendChild(grip);
 
-            // Add alignment buttons
-            const alignBtns = createAlignButtons(colIndex);
-            alignBtns.forEach(btn => td.appendChild(btn));
+            // Note: Alignment buttons are only for headers, not data cells
 
             td.addEventListener('input', (e) => handleCellInput(e, rowIndex, colIndex));
             td.addEventListener('keydown', handleCellKeydown);
@@ -486,6 +484,7 @@ function createCellGrip(row, col) {
     const grip = document.createElement('div');
     grip.className = 'cell-grip';
     grip.draggable = true;
+    grip.contentEditable = 'false';
     grip.dataset.row = row;
     grip.dataset.col = col;
 
@@ -627,6 +626,7 @@ function swapCells(row1, col1, row2, col2) {
 function createAlignButtons(colIndex) {
     const leftBtn = document.createElement('button');
     leftBtn.className = 'align-btn align-btn-left';
+    leftBtn.contentEditable = 'false';
     leftBtn.dataset.col = colIndex;
     leftBtn.dataset.align = 'left';
     leftBtn.title = 'Align left';
@@ -638,6 +638,7 @@ function createAlignButtons(colIndex) {
 
     const rightBtn = document.createElement('button');
     rightBtn.className = 'align-btn align-btn-right';
+    rightBtn.contentEditable = 'false';
     rightBtn.dataset.col = colIndex;
     rightBtn.dataset.align = 'right';
     rightBtn.title = 'Align right';

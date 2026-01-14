@@ -368,6 +368,13 @@ footer {
     opacity: 1;
 }
 
+/* Hide grip when cell is focused */
+#editableTable th:focus .cell-grip,
+#editableTable td:focus .cell-grip {
+    opacity: 0;
+    pointer-events: none;
+}
+
 /* Dragging states */
 .dragging {
     opacity: 0.5;
@@ -408,9 +415,14 @@ footer {
     border-left: 2px solid #d4d4d4;
 }
 
-#editableTable th:hover .align-btn,
-#editableTable td:hover .align-btn {
+/* Show alignment buttons only on headers */
+#editableTable th:hover .align-btn {
     opacity: 1;
+}
+
+/* Hide alignment buttons on data cells */
+#editableTable td .align-btn {
+    display: none;
 }
 
 .align-btn:hover {
