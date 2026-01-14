@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table to Markdown Converter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Table to Markdown Converter</h1>
+            <p>テーブルを編集して、リアルタイムでMarkdown形式に変換</p>
+        </header>
+
+        <div class="main-content">
+            <div class="editor-section">
+                <div class="controls">
+                    <button id="addRowBtn" class="btn btn-primary">➕ 行を追加</button>
+                    <button id="addColBtn" class="btn btn-primary">➕ 列を追加</button>
+                    <button id="removeRowBtn" class="btn btn-danger">➖ 行を削除</button>
+                    <button id="removeColBtn" class="btn btn-danger">➖ 列を削除</button>
+                    <button id="clearBtn" class="btn btn-secondary">🗑️ クリア</button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table id="editableTable" contenteditable="false">
+                        <thead>
+                            <tr>
+                                <th contenteditable="true">A</th>
+                                <th contenteditable="true">B</th>
+                                <th contenteditable="true">C</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td contenteditable="true">1</td>
+                                <td contenteditable="true">2</td>
+                                <td contenteditable="true">3</td>
+                            </tr>
+                            <tr>
+                                <td contenteditable="true"></td>
+                                <td contenteditable="true"></td>
+                                <td contenteditable="true"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="output-section">
+                <div class="output-header">
+                    <h2>Markdown出力</h2>
+                    <button id="copyBtn" class="btn btn-success">📋 コピー</button>
+                </div>
+                <pre id="markdownOutput"></pre>
+                <div id="copyNotification" class="notification">コピーしました！</div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Markdownテーブルの作成を簡単に！</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
