@@ -1,0 +1,49 @@
+services:
+  architecting:
+    build: .
+    container_name: architecting
+    # Network capabilities for firewall configuration
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      # :cachedのこの設定は、windows, macOS でのパフォーマンスを向上させる可能性があるが、linux上では効果がない。
+      # ..:/app の app は DockerfileのWORKDIRで指定することと同じ。
+      - ..:/app
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+    # ports:
+    # - "8080:8080"
+    # Chrome DevTools Protocol (コンテナ内の Chrome 用)
+    # - "9222:9222"
+    networks:
+      - backend
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: api-postgres
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: apidb
+  #   command: postgres -c ssl=off
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - backend
+
+networks:
+  backend:
+
+volumes:
+  postgres_data:
