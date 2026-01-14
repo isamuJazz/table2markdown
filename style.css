@@ -331,3 +331,123 @@ footer {
 ::-webkit-scrollbar-thumb:hover {
     background: #a3a3a3;
 }
+
+/* Cell grip for drag & drop */
+.cell-grip {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 16px;
+    height: 16px;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    background: #a3a3a3;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: white;
+    user-select: none;
+    z-index: 10;
+}
+
+.cell-grip::before {
+    content: '⋮⋮';
+    letter-spacing: -2px;
+    font-weight: bold;
+}
+
+.cell-grip:active {
+    cursor: grabbing;
+}
+
+#editableTable th:hover .cell-grip,
+#editableTable td:hover .cell-grip {
+    opacity: 1;
+}
+
+/* Dragging states */
+.dragging {
+    opacity: 0.5;
+    background: #e5e5e5 !important;
+}
+
+.drop-target {
+    outline: 2px dashed #0a0a0a !important;
+    outline-offset: -2px;
+    background: #f0f0f0 !important;
+}
+
+/* Alignment buttons */
+.align-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 60%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.15s ease;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.align-btn-left {
+    left: 0;
+    border-right: 2px solid #d4d4d4;
+}
+
+.align-btn-right {
+    right: 0;
+    border-left: 2px solid #d4d4d4;
+}
+
+#editableTable th:hover .align-btn,
+#editableTable td:hover .align-btn {
+    opacity: 1;
+}
+
+.align-btn:hover {
+    background: rgba(163, 163, 163, 0.1);
+}
+
+.align-btn-left:hover {
+    border-right-color: #0a0a0a;
+}
+
+.align-btn-right:hover {
+    border-left-color: #0a0a0a;
+}
+
+.align-btn.active {
+    opacity: 0.6;
+    background: rgba(10, 10, 10, 0.05);
+}
+
+/* Cell alignment classes */
+#editableTable th.align-left,
+#editableTable td.align-left {
+    text-align: left;
+}
+
+#editableTable th.align-right,
+#editableTable td.align-right {
+    text-align: right;
+}
+
+#editableTable th.align-center,
+#editableTable td.align-center {
+    text-align: center;
+}
+
+/* Adjust cell padding for buttons */
+#editableTable th,
+#editableTable td {
+    padding: 12px 28px;
+}

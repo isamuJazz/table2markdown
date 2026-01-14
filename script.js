@@ -4,7 +4,8 @@ let tableData = {
     rows: [
         ['1', '2', '3'],
         ['', '', '']
-    ]
+    ],
+    alignments: ['left', 'left', 'left']
 };
 
 // DOM elements
@@ -87,6 +88,18 @@ function renderTable() {
         th.textContent = header;
         th.dataset.row = '-1';
         th.dataset.col = colIndex;
+
+        // Add alignment class
+        th.className = `align-${tableData.alignments[colIndex]}`;
+
+        // Add grip handle
+        const grip = createCellGrip(-1, colIndex);
+        th.appendChild(grip);
+
+        // Add alignment buttons
+        const alignBtns = createAlignButtons(colIndex);
+        alignBtns.forEach(btn => th.appendChild(btn));
+
         th.addEventListener('input', (e) => handleCellInput(e, -1, colIndex));
         th.addEventListener('keydown', handleCellKeydown);
         headerRow.appendChild(th);
@@ -105,6 +118,18 @@ function renderTable() {
             td.textContent = cell;
             td.dataset.row = rowIndex;
             td.dataset.col = colIndex;
+
+            // Add alignment class
+            td.className = `align-${tableData.alignments[colIndex]}`;
+
+            // Add grip handle
+            const grip = createCellGrip(rowIndex, colIndex);
+            td.appendChild(grip);
+
+            // Add alignment buttons
+            const alignBtns = createAlignButtons(colIndex);
+            alignBtns.forEach(btn => td.appendChild(btn));
+
             td.addEventListener('input', (e) => handleCellInput(e, rowIndex, colIndex));
             td.addEventListener('keydown', handleCellKeydown);
             tr.appendChild(td);
@@ -290,6 +315,9 @@ function addColumn(afterIndex) {
     // Add to headers
     tableData.headers.splice(afterIndex + 1, 0, '');
 
+    // Add to alignments
+    tableData.alignments.splice(afterIndex + 1, 0, 'left');
+
     // Add to each row
     tableData.rows.forEach(row => {
         row.splice(afterIndex + 1, 0, '');
@@ -309,6 +337,7 @@ function removeColumn(index) {
     }
 
     tableData.headers.splice(index, 1);
+    tableData.alignments.splice(index, 1);
     tableData.rows.forEach(row => {
         row.splice(index, 1);
     });
@@ -368,8 +397,18 @@ function tableToMarkdown() {
     const headers = tableData.headers.map(h => h.trim() || ' ');
     let markdown = '| ' + headers.join(' | ') + ' |\n';
 
-    // Separator row
-    const separators = tableData.headers.map(() => '---');
+    // Separator row with alignment
+    const separators = tableData.alignments.map(align => {
+        switch(align) {
+            case 'right':
+                return '---:';
+            case 'center':
+                return ':---:';
+            case 'left':
+            default:
+                return '---';
+        }
+    });
     markdown += '| ' + separators.join(' | ') + ' |\n';
 
     // Data rows
@@ -430,4 +469,198 @@ function showNotification() {
     setTimeout(() => {
         notification.classList.remove('show');
     }, 2000);
+}
+
+// ============================================
+// Drag & Drop Functionality
+// ============================================
+
+let draggedCell = null;
+let draggedRow = null;
+let draggedCol = null;
+
+/**
+ * Create cell grip for drag & drop
+ */
+function createCellGrip(row, col) {
+    const grip = document.createElement('div');
+    grip.className = 'cell-grip';
+    grip.draggable = true;
+    grip.dataset.row = row;
+    grip.dataset.col = col;
+
+    grip.addEventListener('dragstart', handleDragStart);
+    grip.addEventListener('dragend', handleDragEnd);
+
+    return grip;
+}
+
+/**
+ * Handle drag start
+ */
+function handleDragStart(e) {
+    const grip = e.target;
+    draggedRow = parseInt(grip.dataset.row);
+    draggedCol = parseInt(grip.dataset.col);
+    draggedCell = grip.parentElement;
+
+    draggedCell.classList.add('dragging');
+
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', draggedCell.innerHTML);
+
+    setupDropTargets();
+}
+
+/**
+ * Handle drag end
+ */
+function handleDragEnd(e) {
+    draggedCell.classList.remove('dragging');
+
+    document.querySelectorAll('.drop-target').forEach(cell => {
+        cell.classList.remove('drop-target');
+    });
+
+    draggedCell = null;
+    draggedRow = null;
+    draggedCol = null;
+}
+
+/**
+ * Setup drop targets
+ */
+function setupDropTargets() {
+    const allCells = document.querySelectorAll('#editableTable th, #editableTable td');
+
+    allCells.forEach(cell => {
+        cell.addEventListener('dragover', handleDragOver);
+        cell.addEventListener('dragenter', handleDragEnter);
+        cell.addEventListener('dragleave', handleDragLeave);
+        cell.addEventListener('drop', handleDrop);
+    });
+}
+
+/**
+ * Handle drag over
+ */
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+/**
+ * Handle drag enter
+ */
+function handleDragEnter(e) {
+    if (e.target !== draggedCell && (e.target.tagName === 'TH' || e.target.tagName === 'TD')) {
+        e.target.classList.add('drop-target');
+    }
+}
+
+/**
+ * Handle drag leave
+ */
+function handleDragLeave(e) {
+    if (e.target.tagName === 'TH' || e.target.tagName === 'TD') {
+        e.target.classList.remove('drop-target');
+    }
+}
+
+/**
+ * Handle drop
+ */
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const targetCell = e.target.tagName === 'TH' || e.target.tagName === 'TD'
+        ? e.target
+        : e.target.closest('th, td');
+
+    if (!targetCell || targetCell === draggedCell) {
+        return false;
+    }
+
+    const targetRow = parseInt(targetCell.dataset.row);
+    const targetCol = parseInt(targetCell.dataset.col);
+
+    swapCells(draggedRow, draggedCol, targetRow, targetCol);
+
+    return false;
+}
+
+/**
+ * Swap cells content
+ */
+function swapCells(row1, col1, row2, col2) {
+    let temp;
+
+    if (row1 === -1 && row2 === -1) {
+        // Both headers
+        temp = tableData.headers[col1];
+        tableData.headers[col1] = tableData.headers[col2];
+        tableData.headers[col2] = temp;
+    } else if (row1 === -1 || row2 === -1) {
+        // One header, one data cell - not allowed
+        alert('Cannot swap header with data cell');
+        return;
+    } else {
+        // Both data cells
+        temp = tableData.rows[row1][col1];
+        tableData.rows[row1][col1] = tableData.rows[row2][col2];
+        tableData.rows[row2][col2] = temp;
+    }
+
+    renderTable();
+    updateMarkdown();
+}
+
+// ============================================
+// Alignment Functionality
+// ============================================
+
+/**
+ * Create alignment buttons
+ */
+function createAlignButtons(colIndex) {
+    const leftBtn = document.createElement('button');
+    leftBtn.className = 'align-btn align-btn-left';
+    leftBtn.dataset.col = colIndex;
+    leftBtn.dataset.align = 'left';
+    leftBtn.title = 'Align left';
+    leftBtn.addEventListener('click', (e) => handleAlignClick(e, colIndex, 'left'));
+
+    if (tableData.alignments[colIndex] === 'left') {
+        leftBtn.classList.add('active');
+    }
+
+    const rightBtn = document.createElement('button');
+    rightBtn.className = 'align-btn align-btn-right';
+    rightBtn.dataset.col = colIndex;
+    rightBtn.dataset.align = 'right';
+    rightBtn.title = 'Align right';
+    rightBtn.addEventListener('click', (e) => handleAlignClick(e, colIndex, 'right'));
+
+    if (tableData.alignments[colIndex] === 'right') {
+        rightBtn.classList.add('active');
+    }
+
+    return [leftBtn, rightBtn];
+}
+
+/**
+ * Handle alignment button click
+ */
+function handleAlignClick(e, colIndex, alignment) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    e.target.blur();
+
+    tableData.alignments[colIndex] = alignment;
+
+    renderTable();
+    updateMarkdown();
 }
