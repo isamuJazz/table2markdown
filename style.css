@@ -119,7 +119,7 @@ header p {
 
 .row-controls {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 4px;
     padding-top: 8px;
 }
@@ -142,9 +142,10 @@ header p {
 
 .column-control-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     gap: 4px;
     align-items: center;
+    justify-content: center;
 }
 
 .btn-icon {
