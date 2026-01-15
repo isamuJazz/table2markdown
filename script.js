@@ -337,18 +337,18 @@ function findCell(row, col) {
 }
 
 /**
- * Add a column after the specified index
+ * Add a column at the specified index (pushes current column to the right)
  */
-function addColumn(afterIndex) {
+function addColumn(atIndex) {
     // Add to headers
-    tableData.headers.splice(afterIndex + 1, 0, '');
+    tableData.headers.splice(atIndex, 0, '');
 
     // Add to alignments
-    tableData.alignments.splice(afterIndex + 1, 0, 'left');
+    tableData.alignments.splice(atIndex, 0, 'left');
 
     // Add to each row
     tableData.rows.forEach(row => {
-        row.splice(afterIndex + 1, 0, '');
+        row.splice(atIndex, 0, '');
     });
 
     renderTable();
@@ -375,11 +375,11 @@ function removeColumn(index) {
 }
 
 /**
- * Add a row after the specified index
+ * Add a row at the specified index (pushes current row down)
  */
-function addRow(afterIndex) {
+function addRow(atIndex) {
     const newRow = new Array(tableData.headers.length).fill('');
-    tableData.rows.splice(afterIndex + 1, 0, newRow);
+    tableData.rows.splice(atIndex, 0, newRow);
 
     renderTable();
     updateMarkdown();
