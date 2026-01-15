@@ -85,7 +85,7 @@ function renderTable() {
     tableData.headers.forEach((header, colIndex) => {
         const th = document.createElement('th');
         th.contentEditable = 'true';
-        th.textContent = header;
+        th.textContent = header || '\u200B'; // Use zero-width space if empty
         th.dataset.row = '-1';
         th.dataset.col = colIndex;
 
@@ -115,7 +115,7 @@ function renderTable() {
         row.forEach((cell, colIndex) => {
             const td = document.createElement('td');
             td.contentEditable = 'true';
-            td.textContent = cell;
+            td.textContent = cell || '\u200B'; // Use zero-width space if empty
             td.dataset.row = rowIndex;
             td.dataset.col = colIndex;
 
@@ -216,7 +216,11 @@ function renderTable() {
  * Handle cell input
  */
 function handleCellInput(e, rowIndex, colIndex) {
-    const value = e.target.textContent;
+    let value = e.target.textContent;
+    // Remove zero-width space if that's the only character
+    if (value === '\u200B') {
+        value = '';
+    }
     if (rowIndex === -1) {
         tableData.headers[colIndex] = value;
     } else {
@@ -392,7 +396,10 @@ function tableToMarkdown() {
     }
 
     // Header row
-    const headers = tableData.headers.map(h => h.trim() || ' ');
+    const headers = tableData.headers.map(h => {
+        const cleaned = h.replace(/\u200B/g, '').trim();
+        return cleaned || ' ';
+    });
     let markdown = '| ' + headers.join(' | ') + ' |\n';
 
     // Separator row with alignment
@@ -412,7 +419,7 @@ function tableToMarkdown() {
     // Data rows
     tableData.rows.forEach(row => {
         const cells = row.map(cell => {
-            let content = cell.trim();
+            let content = cell.replace(/\u200B/g, '').trim();
             content = content.replace(/\|/g, '\\|');
             return content || ' ';
         });
