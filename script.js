@@ -212,6 +212,30 @@ function renderTable() {
     // Replace old content
     tableWrapper.innerHTML = '';
     tableWrapper.appendChild(tableGrid);
+
+    // Re-initialize mode and draggable functionality after rendering
+    const table = document.getElementById('editableTable');
+    if (table) {
+        if (currentMode === 'normal') {
+            table.classList.add('normal-mode');
+        } else {
+            table.classList.add('insert-mode');
+        }
+        makeCellsDraggable();
+
+        // Restore focus if there was a focused cell
+        if (focusedRow !== null && focusedCol !== null) {
+            const selector = `[data-row="${focusedRow}"][data-col="${focusedCol}"]`;
+            const cell = document.querySelector(selector);
+            if (cell) {
+                focusedCell = cell;
+                cell.classList.add('focused');
+                if (currentMode === 'insert') {
+                    cell.contentEditable = 'true';
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -870,11 +894,27 @@ function makeCellsDraggable() {
  * Handle cell click
  */
 function handleCellClick(e) {
-    if (currentMode === 'normal') {
-        const cell = e.currentTarget;
-        const row = parseInt(cell.dataset.row);
-        const col = parseInt(cell.dataset.col);
-        focusCell(row, col);
+    const cell = e.currentTarget;
+    const row = parseInt(cell.dataset.row);
+    const col = parseInt(cell.dataset.col);
+    focusCell(row, col);
+
+    if (currentMode === 'insert') {
+        // Re-enable editing in insert mode
+        cell.contentEditable = 'true';
+        cell.focus();
+        // Place cursor at end
+        const range = document.createRange();
+        const sel = window.getSelection();
+        if (cell.childNodes.length > 0) {
+            const textNode = cell.childNodes[0];
+            range.setStart(textNode, textNode.length);
+        } else {
+            range.setStart(cell, 0);
+        }
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
     }
 }
 
