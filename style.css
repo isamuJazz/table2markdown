@@ -346,18 +346,18 @@ footer {
     position: absolute;
     top: 4px;
     right: 4px;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     cursor: grab;
     opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s ease, visibility 0.15s ease;
-    background: #a3a3a3;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    background: #525252;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
     color: white;
     user-select: none;
     z-index: 10;
@@ -373,17 +373,23 @@ footer {
     cursor: grabbing;
 }
 
+.cell-grip:hover {
+    opacity: 1 !important;
+    background: #0a0a0a;
+    pointer-events: auto;
+}
+
 #editableTable th:hover .cell-grip,
 #editableTable td:hover .cell-grip {
-    opacity: 1;
-    visibility: visible;
+    opacity: 0.7;
+    pointer-events: auto;
 }
 
 /* Hide grip when cell is focused */
 #editableTable th:focus .cell-grip,
 #editableTable td:focus .cell-grip {
     opacity: 0;
-    visibility: hidden;
+    pointer-events: none;
 }
 
 /* Dragging states */
@@ -409,8 +415,8 @@ footer {
     border: none;
     cursor: pointer;
     opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s ease, background 0.15s ease, visibility 0.15s ease;
+    pointer-events: none;
+    transition: opacity 0.15s ease, background 0.15s ease;
     z-index: 5;
     display: flex;
     align-items: center;
@@ -430,16 +436,18 @@ footer {
 /* Show alignment buttons only on headers */
 #editableTable th:hover .align-btn {
     opacity: 1;
-    visibility: visible;
+    pointer-events: auto;
+}
+
+.align-btn:hover {
+    opacity: 1 !important;
+    background: rgba(163, 163, 163, 0.1);
+    pointer-events: auto;
 }
 
 /* Hide alignment buttons on data cells */
 #editableTable td .align-btn {
     display: none;
-}
-
-.align-btn:hover {
-    background: rgba(163, 163, 163, 0.1);
 }
 
 .align-btn-left:hover {
