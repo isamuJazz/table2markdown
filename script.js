@@ -190,7 +190,7 @@ function renderTable() {
     allRowControls.style.display = 'flex';
     allRowControls.style.flexDirection = 'column';
     allRowControls.style.gap = '0';
-    allRowControls.style.paddingTop = '48px'; // Align with first data row
+    allRowControls.style.paddingTop = '68px'; // Align with first data row (48px + 20px for grip space)
 
     bodyRowWrappers.forEach(({ controls }) => {
         const controlWrapper = document.createElement('div');
@@ -494,6 +494,11 @@ function createCellGrip(row, col) {
     grip.contentEditable = 'false';
     grip.dataset.row = row;
     grip.dataset.col = col;
+
+    // Prevent grip from triggering cell focus
+    grip.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+    });
 
     grip.addEventListener('dragstart', handleDragStart);
     grip.addEventListener('dragend', handleDragEnd);
