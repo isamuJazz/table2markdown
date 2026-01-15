@@ -740,7 +740,7 @@ function switchMode(mode) {
     
     if (mode === 'normal') {
         // Normal mode
-        modeIndicator.textContent = 'セルモード';
+        modeIndicator.textContent = 'ノーマルモード';
         modeIndicator.classList.remove('insert-mode');
         table.classList.remove('insert-mode');
         table.classList.add('normal-mode');
@@ -814,21 +814,25 @@ function handleNormalModeNavigation(e) {
     
     switch(e.key) {
         case 'ArrowUp':
+        case 'k':  // Vim: k = up
             e.preventDefault();
             nextRow = focusedRow - 1;
             shouldMove = true;
             break;
         case 'ArrowDown':
+        case 'j':  // Vim: j = down
             e.preventDefault();
             nextRow = focusedRow + 1;
             shouldMove = true;
             break;
         case 'ArrowLeft':
+        case 'h':  // Vim: h = left
             e.preventDefault();
             nextCol = focusedCol - 1;
             shouldMove = true;
             break;
         case 'ArrowRight':
+        case 'l':  // Vim: l = right
             e.preventDefault();
             nextCol = focusedCol + 1;
             shouldMove = true;
