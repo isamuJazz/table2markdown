@@ -23,6 +23,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Inject commit hash
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          sed -i "s/__COMMIT_HASH__/$SHORT_SHA/g" index.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

@@ -39,6 +39,13 @@ header p {
     color: #737373;
 }
 
+header .commit-hash {
+    font-size: 0.7em;
+    color: #a3a3a3;
+    margin-top: 8px;
+    font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+}
+
 .main-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
