@@ -8,20 +8,32 @@ let tableData = {
     alignments: ['left', 'left', 'left']
 };
 
+// Mode management
+let currentMode = 'normal'; // 'normal' or 'insert'
+let focusedCell = null;
+let focusedRow = null;
+let focusedCol = null;
+
 // DOM elements
 const tableWrapper = document.getElementById('tableWrapper');
 const markdownOutput = document.getElementById('markdownOutput');
 const clearBtn = document.getElementById('clearBtn');
 const copyBtn = document.getElementById('copyBtn');
 const notification = document.getElementById('copyNotification');
+const modeIndicator = document.getElementById('modeIndicator');
 
 // Initialize
 renderTable();
 updateMarkdown();
+initializeMode();
 
 // Event listeners
 clearBtn.addEventListener('click', clearTable);
 copyBtn.addEventListener('click', copyToClipboard);
+modeIndicator.addEventListener('click', () => switchMode('normal'));
+
+// Global keyboard listener
+document.addEventListener('keydown', handleGlobalKeydown);
 
 /**
  * Render the entire table with controls
@@ -84,24 +96,20 @@ function renderTable() {
 
     tableData.headers.forEach((header, colIndex) => {
         const th = document.createElement('th');
-        th.contentEditable = 'true';
+        th.contentEditable = 'false'; // Normal mode by default
         th.textContent = header || '\u200B'; // Use zero-width space if empty
         th.dataset.row = '-1';
         th.dataset.col = colIndex;
+        th.tabIndex = 0; // Make focusable
 
         // Add alignment class
         th.className = `align-${tableData.alignments[colIndex]}`;
 
-        // Add grip handle
-        const grip = createCellGrip(-1, colIndex);
-        th.appendChild(grip);
-
-        // Add alignment buttons
+        // Add alignment buttons (left, center, right)
         const alignBtns = createAlignButtons(colIndex);
         alignBtns.forEach(btn => th.appendChild(btn));
 
         th.addEventListener('input', (e) => handleCellInput(e, -1, colIndex));
-        th.addEventListener('keydown', handleCellKeydown);
         headerRow.appendChild(th);
     });
 
@@ -114,22 +122,16 @@ function renderTable() {
         const tr = document.createElement('tr');
         row.forEach((cell, colIndex) => {
             const td = document.createElement('td');
-            td.contentEditable = 'true';
+            td.contentEditable = 'false'; // Normal mode by default
             td.textContent = cell || '\u200B'; // Use zero-width space if empty
             td.dataset.row = rowIndex;
             td.dataset.col = colIndex;
+            td.tabIndex = 0; // Make focusable
 
             // Add alignment class
             td.className = `align-${tableData.alignments[colIndex]}`;
 
-            // Add grip handle
-            const grip = createCellGrip(rowIndex, colIndex);
-            td.appendChild(grip);
-
-            // Note: Alignment buttons are only for headers, not data cells
-
             td.addEventListener('input', (e) => handleCellInput(e, rowIndex, colIndex));
-            td.addEventListener('keydown', handleCellKeydown);
             tr.appendChild(td);
         });
         tbody.appendChild(tr);
@@ -648,6 +650,18 @@ function createAlignButtons(colIndex) {
         leftBtn.classList.add('active');
     }
 
+    const centerBtn = document.createElement('button');
+    centerBtn.className = 'align-btn align-btn-center';
+    centerBtn.contentEditable = 'false';
+    centerBtn.dataset.col = colIndex;
+    centerBtn.dataset.align = 'center';
+    centerBtn.title = 'Align center';
+    centerBtn.addEventListener('click', (e) => handleAlignClick(e, colIndex, 'center'));
+
+    if (tableData.alignments[colIndex] === 'center') {
+        centerBtn.classList.add('active');
+    }
+
     const rightBtn = document.createElement('button');
     rightBtn.className = 'align-btn align-btn-right';
     rightBtn.contentEditable = 'false';
@@ -660,7 +674,7 @@ function createAlignButtons(colIndex) {
         rightBtn.classList.add('active');
     }
 
-    return [leftBtn, rightBtn];
+    return [leftBtn, centerBtn, rightBtn];
 }
 
 /**
@@ -677,3 +691,252 @@ function handleAlignClick(e, colIndex, alignment) {
     renderTable();
     updateMarkdown();
 }
+
+// ============================================
+// Modal Editing Functionality (Vim-inspired)
+// ============================================
+
+/**
+ * Initialize mode system
+ */
+function initializeMode() {
+    const table = document.getElementById('editableTable');
+    if (table) {
+        table.classList.add('normal-mode');
+        makeCellsDraggable();
+    }
+}
+
+/**
+ * Switch between normal and insert mode
+ */
+function switchMode(mode) {
+    currentMode = mode;
+    const table = document.getElementById('editableTable');
+    
+    if (mode === 'normal') {
+        // Normal mode
+        modeIndicator.textContent = 'セルモード';
+        modeIndicator.classList.remove('insert-mode');
+        table.classList.remove('insert-mode');
+        table.classList.add('normal-mode');
+        
+        if (focusedCell) {
+            focusedCell.contentEditable = 'false';
+        }
+        
+    } else if (mode === 'insert') {
+        // Insert mode
+        modeIndicator.textContent = '編集モード';
+        modeIndicator.classList.add('insert-mode');
+        table.classList.remove('normal-mode');
+        table.classList.add('insert-mode');
+        
+        if (focusedCell) {
+            focusedCell.contentEditable = 'true';
+            focusedCell.focus();
+            // Place cursor at end
+            const range = document.createRange();
+            const sel = window.getSelection();
+            if (focusedCell.childNodes.length > 0) {
+                const textNode = focusedCell.childNodes[0];
+                range.setStart(textNode, textNode.length);
+            } else {
+                range.setStart(focusedCell, 0);
+            }
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    }
+}
+
+/**
+ * Handle global keyboard events
+ */
+function handleGlobalKeydown(e) {
+    const table = document.getElementById('editableTable');
+    if (!table) return;
+    
+    // Escape key: switch to normal mode
+    if (e.key === 'Escape' && currentMode === 'insert') {
+        e.preventDefault();
+        switchMode('normal');
+        return;
+    }
+    
+    // 'i' key: switch to insert mode (only in normal mode with focused cell)
+    if (e.key === 'i' && currentMode === 'normal' && focusedCell) {
+        e.preventDefault();
+        switchMode('insert');
+        return;
+    }
+    
+    // Navigation in normal mode
+    if (currentMode === 'normal') {
+        handleNormalModeNavigation(e);
+    }
+}
+
+/**
+ * Handle navigation in normal mode
+ */
+function handleNormalModeNavigation(e) {
+    if (!focusedCell) return;
+    
+    let nextRow = focusedRow;
+    let nextCol = focusedCol;
+    let shouldMove = false;
+    
+    switch(e.key) {
+        case 'ArrowUp':
+            e.preventDefault();
+            nextRow = focusedRow - 1;
+            shouldMove = true;
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            nextRow = focusedRow + 1;
+            shouldMove = true;
+            break;
+        case 'ArrowLeft':
+            e.preventDefault();
+            nextCol = focusedCol - 1;
+            shouldMove = true;
+            break;
+        case 'ArrowRight':
+            e.preventDefault();
+            nextCol = focusedCol + 1;
+            shouldMove = true;
+            break;
+        case 'Tab':
+            e.preventDefault();
+            if (e.shiftKey) {
+                nextCol = focusedCol - 1;
+            } else {
+                nextCol = focusedCol + 1;
+            }
+            shouldMove = true;
+            break;
+    }
+    
+    if (shouldMove) {
+        focusCell(nextRow, nextCol);
+    }
+}
+
+/**
+ * Focus a specific cell
+ */
+function focusCell(row, col) {
+    // Validate coordinates
+    if (col < 0 || col >= tableData.headers.length) return;
+    if (row < -1 || row >= tableData.rows.length) return;
+    
+    // Remove previous focus
+    if (focusedCell) {
+        focusedCell.classList.remove('focused');
+    }
+    
+    // Find and focus new cell
+    const selector = `[data-row="${row}"][data-col="${col}"]`;
+    const cell = document.querySelector(selector);
+    
+    if (cell) {
+        cell.classList.add('focused');
+        focusedCell = cell;
+        focusedRow = row;
+        focusedCol = col;
+        cell.focus();
+    }
+}
+
+/**
+ * Make all cells draggable in normal mode
+ */
+function makeCellsDraggable() {
+    const cells = document.querySelectorAll('#editableTable th, #editableTable td');
+    cells.forEach(cell => {
+        cell.draggable = true;
+        cell.addEventListener('dragstart', handleCellDragStart);
+        cell.addEventListener('dragend', handleCellDragEnd);
+        cell.addEventListener('dragover', handleCellDragOver);
+        cell.addEventListener('drop', handleCellDrop);
+        cell.addEventListener('click', handleCellClick);
+    });
+}
+
+/**
+ * Handle cell click
+ */
+function handleCellClick(e) {
+    if (currentMode === 'normal') {
+        const cell = e.currentTarget;
+        const row = parseInt(cell.dataset.row);
+        const col = parseInt(cell.dataset.col);
+        focusCell(row, col);
+    }
+}
+
+let draggedCellData = null;
+
+/**
+ * Handle cell drag start
+ */
+function handleCellDragStart(e) {
+    if (currentMode !== 'normal') {
+        e.preventDefault();
+        return;
+    }
+    
+    const cell = e.currentTarget;
+    draggedCellData = {
+        row: parseInt(cell.dataset.row),
+        col: parseInt(cell.dataset.col)
+    };
+    
+    cell.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', cell.innerHTML);
+}
+
+/**
+ * Handle cell drag end
+ */
+function handleCellDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.drop-target').forEach(c => c.classList.remove('drop-target'));
+    draggedCellData = null;
+}
+
+/**
+ * Handle cell drag over
+ */
+function handleCellDragOver(e) {
+    if (currentMode !== 'normal' || !draggedCellData) return;
+    
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const cell = e.currentTarget;
+    if (cell.tagName === 'TH' || cell.tagName === 'TD') {
+        cell.classList.add('drop-target');
+    }
+}
+
+/**
+ * Handle cell drop
+ */
+function handleCellDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const targetCell = e.currentTarget;
+    if (!targetCell || !draggedCellData) return;
+    
+    const targetRow = parseInt(targetCell.dataset.row);
+    const targetCol = parseInt(targetCell.dataset.col);
+    
+    swapCells(draggedCellData.row, draggedCellData.col, targetRow, targetCol);
+}
+
