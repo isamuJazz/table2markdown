@@ -22,6 +22,9 @@ const copyBtn = document.getElementById('copyBtn');
 const applyBtn = document.getElementById('applyBtn');
 const notification = document.getElementById('copyNotification');
 const modeIndicator = document.getElementById('modeIndicator');
+const helpBtn = document.getElementById('helpBtn');
+const helpModal = document.getElementById('helpModal');
+const modalCloseBtn = document.getElementById('modalCloseBtn');
 
 // Initialize
 renderTable();
@@ -33,6 +36,13 @@ clearBtn.addEventListener('click', clearTable);
 copyBtn.addEventListener('click', copyToClipboard);
 applyBtn.addEventListener('click', applyMarkdown);
 modeIndicator.addEventListener('click', () => switchMode('normal'));
+helpBtn.addEventListener('click', openModal);
+modalCloseBtn.addEventListener('click', closeModal);
+helpModal.addEventListener('click', (e) => {
+    if (e.target === helpModal) {
+        closeModal();
+    }
+});
 
 // Global keyboard listener
 document.addEventListener('keydown', handleGlobalKeydown);
@@ -893,27 +903,47 @@ function switchMode(mode) {
  * Handle global keyboard events
  */
 function handleGlobalKeydown(e) {
+    // Escape key: close modal if open
+    if (e.key === 'Escape' && helpModal.classList.contains('show')) {
+        closeModal();
+        return;
+    }
+
     const table = document.getElementById('editableTable');
     if (!table) return;
-    
+
     // Escape key: switch to normal mode
     if (e.key === 'Escape' && currentMode === 'insert') {
         e.preventDefault();
         switchMode('normal');
         return;
     }
-    
+
     // 'i' key: switch to insert mode (only in normal mode with focused cell)
     if (e.key === 'i' && currentMode === 'normal' && focusedCell) {
         e.preventDefault();
         switchMode('insert');
         return;
     }
-    
+
     // Navigation in normal mode
     if (currentMode === 'normal') {
         handleNormalModeNavigation(e);
     }
+}
+
+/**
+ * Open help modal
+ */
+function openModal() {
+    helpModal.classList.add('show');
+}
+
+/**
+ * Close help modal
+ */
+function closeModal() {
+    helpModal.classList.remove('show');
 }
 
 /**
