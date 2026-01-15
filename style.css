@@ -275,6 +275,31 @@ header .commit-hash {
     font-weight: 600;
 }
 
+.output-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-apply {
+    padding: 8px 16px;
+    border: 1px solid #0a0a0a;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: white;
+    color: #0a0a0a;
+}
+
+.btn-apply:hover {
+    background: #fafafa;
+}
+
+.btn-apply:active {
+    transform: scale(0.98);
+}
+
 .btn-copy {
     padding: 8px 16px;
     border: 1px solid #0a0a0a;

@@ -19,6 +19,7 @@ const tableWrapper = document.getElementById('tableWrapper');
 const markdownOutput = document.getElementById('markdownOutput');
 const clearBtn = document.getElementById('clearBtn');
 const copyBtn = document.getElementById('copyBtn');
+const applyBtn = document.getElementById('applyBtn');
 const notification = document.getElementById('copyNotification');
 const modeIndicator = document.getElementById('modeIndicator');
 
@@ -30,6 +31,7 @@ initializeMode();
 // Event listeners
 clearBtn.addEventListener('click', clearTable);
 copyBtn.addEventListener('click', copyToClipboard);
+applyBtn.addEventListener('click', applyMarkdown);
 modeIndicator.addEventListener('click', () => switchMode('normal'));
 
 // Global keyboard listener
@@ -500,6 +502,118 @@ function showNotification() {
     setTimeout(() => {
         notification.classList.remove('show');
     }, 2000);
+}
+
+/**
+ * Apply Markdown to table
+ */
+function applyMarkdown() {
+    const markdown = markdownOutput.textContent.trim();
+
+    try {
+        const parsed = parseMarkdownTable(markdown);
+
+        // Update tableData
+        tableData.headers = parsed.headers;
+        tableData.rows = parsed.rows;
+        tableData.alignments = parsed.alignments;
+
+        // Re-render table and update markdown
+        renderTable();
+        updateMarkdown();
+
+    } catch (error) {
+        alert('Markdownテーブルの記述にエラーがあります。\n\n' + error.message);
+    }
+}
+
+/**
+ * Parse Markdown table
+ */
+function parseMarkdownTable(markdown) {
+    const lines = markdown.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+    if (lines.length < 2) {
+        throw new Error('テーブルには最低2行（ヘッダー行と区切り行）が必要です。');
+    }
+
+    // Parse header row
+    const headerLine = lines[0];
+    if (!headerLine.startsWith('|') || !headerLine.endsWith('|')) {
+        throw new Error('ヘッダー行は "|" で始まり、"|" で終わる必要があります。');
+    }
+
+    const headers = headerLine
+        .split('|')
+        .slice(1, -1) // Remove first and last empty elements
+        .map(h => h.trim());
+
+    if (headers.length === 0) {
+        throw new Error('ヘッダーが空です。');
+    }
+
+    // Parse separator row
+    const separatorLine = lines[1];
+    if (!separatorLine.startsWith('|') || !separatorLine.endsWith('|')) {
+        throw new Error('区切り行は "|" で始まり、"|" で終わる必要があります。');
+    }
+
+    const separators = separatorLine
+        .split('|')
+        .slice(1, -1)
+        .map(s => s.trim());
+
+    if (separators.length !== headers.length) {
+        throw new Error('区切り行の列数がヘッダーの列数と一致しません。');
+    }
+
+    // Parse alignments from separator row
+    const alignments = separators.map(sep => {
+        // Check if it's a valid separator (contains at least ---)
+        if (!sep.match(/^:?-+:?$/)) {
+            throw new Error('区切り行の形式が正しくありません。"---", ":---", "---:", ":---:" のいずれかである必要があります。');
+        }
+
+        if (sep.startsWith(':') && sep.endsWith(':')) {
+            return 'center';
+        } else if (sep.endsWith(':')) {
+            return 'right';
+        } else {
+            return 'left';
+        }
+    });
+
+    // Parse data rows
+    const rows = [];
+    for (let i = 2; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (!line.startsWith('|') || !line.endsWith('|')) {
+            throw new Error(`${i + 1}行目: 各行は "|" で始まり、"|" で終わる必要があります。`);
+        }
+
+        const cells = line
+            .split('|')
+            .slice(1, -1)
+            .map(c => c.trim().replace(/\\\|/g, '|')); // Unescape pipes
+
+        if (cells.length !== headers.length) {
+            throw new Error(`${i + 1}行目: 列数がヘッダーの列数と一致しません（期待: ${headers.length}, 実際: ${cells.length}）。`);
+        }
+
+        rows.push(cells);
+    }
+
+    if (rows.length === 0) {
+        // Add at least one empty row
+        rows.push(new Array(headers.length).fill(''));
+    }
+
+    return {
+        headers,
+        alignments,
+        rows
+    };
 }
 
 // ============================================

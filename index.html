@@ -31,9 +31,12 @@
             <div class="output-section">
                 <div class="output-header">
                     <h2>Markdown</h2>
-                    <button id="copyBtn" class="btn-copy">Copy</button>
+                    <div class="output-buttons">
+                        <button id="applyBtn" class="btn-apply">反映</button>
+                        <button id="copyBtn" class="btn-copy">Copy</button>
+                    </div>
                 </div>
-                <pre id="markdownOutput"></pre>
+                <pre id="markdownOutput" contenteditable="true"></pre>
                 <div id="copyNotification" class="notification">Copied!</div>
             </div>
         </div>
