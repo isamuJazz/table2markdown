@@ -1013,11 +1013,36 @@ function closeModal() {
  */
 function handleNormalModeNavigation(e) {
     if (!focusedCell) return;
-    
+
+    // Handle d, x, y, p operations
+    if (e.key === 'd') {
+        e.preventDefault();
+        deleteSingleCell();
+        return;
+    }
+
+    if (e.key === 'x') {
+        e.preventDefault();
+        cutSingleCell();
+        return;
+    }
+
+    if (e.key === 'y') {
+        e.preventDefault();
+        yankSingleCell();
+        return;
+    }
+
+    if (e.key === 'p') {
+        e.preventDefault();
+        pasteToFocusedCell();
+        return;
+    }
+
     let nextRow = focusedRow;
     let nextCol = focusedCol;
     let shouldMove = false;
-    
+
     switch(e.key) {
         case 'ArrowUp':
         case 'k':  // Vim: k = up
@@ -1053,7 +1078,7 @@ function handleNormalModeNavigation(e) {
             shouldMove = true;
             break;
     }
-    
+
     if (shouldMove) {
         focusCell(nextRow, nextCol);
     }
@@ -1455,6 +1480,104 @@ function pasteFromMemory() {
     renderTable();
     updateMarkdown();
     switchMode('normal');
+}
+
+// ============================================
+// Normal Mode Single Cell Operations
+// ============================================
+
+/**
+ * Delete content of focused cell (normal mode)
+ */
+function deleteSingleCell() {
+    if (focusedRow === null || focusedCol === null) return;
+
+    // Save undo snapshot
+    saveUndoSnapshot();
+
+    if (focusedRow === -1) {
+        tableData.headers[focusedCol] = '';
+    } else {
+        tableData.rows[focusedRow][focusedCol] = '';
+    }
+
+    renderTable();
+    updateMarkdown();
+}
+
+/**
+ * Cut (delete and copy to memory) focused cell (normal mode)
+ */
+function cutSingleCell() {
+    if (focusedRow === null || focusedCol === null) return;
+
+    // Save undo snapshot
+    saveUndoSnapshot();
+
+    // Get cell content
+    let content;
+    if (focusedRow === -1) {
+        content = tableData.headers[focusedCol];
+        tableData.headers[focusedCol] = '';
+    } else {
+        content = tableData.rows[focusedRow][focusedCol];
+        tableData.rows[focusedRow][focusedCol] = '';
+    }
+
+    // Store in clipboard as 1x1 array
+    clipboardMemory = [[content]];
+
+    renderTable();
+    updateMarkdown();
+}
+
+/**
+ * Yank (copy to memory) focused cell (normal mode)
+ */
+function yankSingleCell() {
+    if (focusedRow === null || focusedCol === null) return;
+
+    // Get cell content
+    let content;
+    if (focusedRow === -1) {
+        content = tableData.headers[focusedCol];
+    } else {
+        content = tableData.rows[focusedRow][focusedCol];
+    }
+
+    // Store in clipboard as 1x1 array
+    clipboardMemory = [[content]];
+}
+
+/**
+ * Paste from clipboard memory to focused cell (normal mode)
+ */
+function pasteToFocusedCell() {
+    if (focusedRow === null || focusedCol === null) return;
+    if (!clipboardMemory || clipboardMemory.length === 0) return;
+
+    // Save undo snapshot
+    saveUndoSnapshot();
+
+    // Paste data starting from focused cell
+    for (let i = 0; i < clipboardMemory.length; i++) {
+        const targetRow = focusedRow + i;
+        if (targetRow >= tableData.rows.length) break; // Don't paste beyond table
+
+        for (let j = 0; j < clipboardMemory[i].length; j++) {
+            const targetCol = focusedCol + j;
+            if (targetCol >= tableData.headers.length) break; // Don't paste beyond table
+
+            if (targetRow === -1) {
+                tableData.headers[targetCol] = clipboardMemory[i][j];
+            } else {
+                tableData.rows[targetRow][targetCol] = clipboardMemory[i][j];
+            }
+        }
+    }
+
+    renderTable();
+    updateMarkdown();
 }
 
 // ============================================
