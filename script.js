@@ -23,6 +23,9 @@ let visualEndCol = null;
 // Clipboard memory for yank/cut/paste
 let clipboardMemory = null;
 
+// Undo functionality
+let undoSnapshot = null;
+
 // DOM elements
 const tableWrapper = document.getElementById('tableWrapper');
 const markdownOutput = document.getElementById('markdownOutput');
@@ -972,6 +975,13 @@ function handleGlobalKeydown(e) {
         return;
     }
 
+    // 'u' key: undo (only in normal mode)
+    if (e.key === 'u' && currentMode === 'normal') {
+        e.preventDefault();
+        performUndo();
+        return;
+    }
+
     // Visual mode operations
     if (currentMode === 'visual') {
         handleVisualModeKeydown(e);
@@ -1317,6 +1327,9 @@ function clearVisualSelection() {
  * Delete content of visually selected cells
  */
 function deleteVisualSelection() {
+    // Save undo snapshot
+    saveUndoSnapshot();
+
     const minRow = Math.min(visualStartRow, visualEndRow);
     const maxRow = Math.max(visualStartRow, visualEndRow);
     const minCol = Math.min(visualStartCol, visualEndCol);
@@ -1341,8 +1354,42 @@ function deleteVisualSelection() {
  * Cut (delete and copy to memory) visually selected cells
  */
 function cutVisualSelection() {
-    yankVisualSelection();
-    deleteVisualSelection();
+    // Save undo snapshot
+    saveUndoSnapshot();
+
+    const minRow = Math.min(visualStartRow, visualEndRow);
+    const maxRow = Math.max(visualStartRow, visualEndRow);
+    const minCol = Math.min(visualStartCol, visualEndCol);
+    const maxCol = Math.max(visualStartCol, visualEndCol);
+
+    // Yank (copy to memory)
+    clipboardMemory = [];
+    for (let row = minRow; row <= maxRow; row++) {
+        const rowData = [];
+        for (let col = minCol; col <= maxCol; col++) {
+            if (row === -1) {
+                rowData.push(tableData.headers[col]);
+            } else {
+                rowData.push(tableData.rows[row][col]);
+            }
+        }
+        clipboardMemory.push(rowData);
+    }
+
+    // Delete
+    for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+            if (row === -1) {
+                tableData.headers[col] = '';
+            } else {
+                tableData.rows[row][col] = '';
+            }
+        }
+    }
+
+    renderTable();
+    updateMarkdown();
+    switchMode('normal');
 }
 
 /**
@@ -1368,6 +1415,7 @@ function yankVisualSelection() {
         clipboardMemory.push(rowData);
     }
 
+    // Note: Don't switch mode here, let the caller handle it
     switchMode('normal');
 }
 
@@ -1379,6 +1427,9 @@ function pasteFromMemory() {
         switchMode('normal');
         return;
     }
+
+    // Save undo snapshot
+    saveUndoSnapshot();
 
     // Determine paste starting position (top-left of selection)
     const minRow = Math.min(visualStartRow, visualEndRow);
@@ -1404,5 +1455,39 @@ function pasteFromMemory() {
     renderTable();
     updateMarkdown();
     switchMode('normal');
+}
+
+// ============================================
+// Undo Functionality
+// ============================================
+
+/**
+ * Save current table state for undo
+ */
+function saveUndoSnapshot() {
+    undoSnapshot = {
+        headers: [...tableData.headers],
+        rows: tableData.rows.map(row => [...row]),
+        alignments: [...tableData.alignments]
+    };
+}
+
+/**
+ * Restore table state from undo snapshot
+ */
+function performUndo() {
+    if (!undoSnapshot) {
+        return; // Nothing to undo
+    }
+
+    tableData.headers = undoSnapshot.headers;
+    tableData.rows = undoSnapshot.rows;
+    tableData.alignments = undoSnapshot.alignments;
+
+    // Clear the snapshot after using it
+    undoSnapshot = null;
+
+    renderTable();
+    updateMarkdown();
 }
 
