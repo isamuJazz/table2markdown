@@ -115,6 +115,7 @@ header .commit-hash {
     flex-direction: column;
     gap: 20px;
     overflow-x: auto;
+    max-width: 100%;
 }
 
 @media (max-width: 1024px) {
