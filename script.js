@@ -9,10 +9,19 @@ let tableData = {
 };
 
 // Mode management
-let currentMode = 'normal'; // 'normal' or 'insert'
+let currentMode = 'normal'; // 'normal', 'insert', or 'visual'
 let focusedCell = null;
 let focusedRow = null;
 let focusedCol = null;
+
+// Visual mode state
+let visualStartRow = null;
+let visualStartCol = null;
+let visualEndRow = null;
+let visualEndCol = null;
+
+// Clipboard memory for yank/cut/paste
+let clipboardMemory = null;
 
 // DOM elements
 const tableWrapper = document.getElementById('tableWrapper');
@@ -230,8 +239,10 @@ function renderTable() {
     if (table) {
         if (currentMode === 'normal') {
             table.classList.add('normal-mode');
-        } else {
+        } else if (currentMode === 'insert') {
             table.classList.add('insert-mode');
+        } else if (currentMode === 'visual') {
+            table.classList.add('visual-mode');
         }
         makeCellsDraggable();
 
@@ -246,6 +257,11 @@ function renderTable() {
                     cell.contentEditable = 'true';
                 }
             }
+        }
+
+        // Restore visual selection if in visual mode
+        if (currentMode === 'visual') {
+            updateVisualSelection();
         }
     }
 }
@@ -861,25 +877,32 @@ function initializeMode() {
 function switchMode(mode) {
     currentMode = mode;
     const table = document.getElementById('editableTable');
-    
+
+    // Clear visual selection when leaving visual mode
+    if (currentMode !== 'visual') {
+        clearVisualSelection();
+    }
+
     if (mode === 'normal') {
         // Normal mode
         modeIndicator.textContent = 'ノーマルモード';
         modeIndicator.classList.remove('insert-mode');
         table.classList.remove('insert-mode');
+        table.classList.remove('visual-mode');
         table.classList.add('normal-mode');
-        
+
         if (focusedCell) {
             focusedCell.contentEditable = 'false';
         }
-        
+
     } else if (mode === 'insert') {
         // Insert mode
         modeIndicator.textContent = '編集モード';
         modeIndicator.classList.add('insert-mode');
         table.classList.remove('normal-mode');
+        table.classList.remove('visual-mode');
         table.classList.add('insert-mode');
-        
+
         if (focusedCell) {
             focusedCell.contentEditable = 'true';
             focusedCell.focus();
@@ -895,6 +918,22 @@ function switchMode(mode) {
             range.collapse(true);
             sel.removeAllRanges();
             sel.addRange(range);
+        }
+    } else if (mode === 'visual') {
+        // Visual mode
+        modeIndicator.textContent = 'ビジュアルモード';
+        modeIndicator.classList.remove('insert-mode');
+        table.classList.remove('normal-mode');
+        table.classList.remove('insert-mode');
+        table.classList.add('visual-mode');
+
+        // Initialize visual selection at focused cell
+        if (focusedRow !== null && focusedCol !== null) {
+            visualStartRow = focusedRow;
+            visualStartCol = focusedCol;
+            visualEndRow = focusedRow;
+            visualEndCol = focusedCol;
+            updateVisualSelection();
         }
     }
 }
@@ -912,10 +951,17 @@ function handleGlobalKeydown(e) {
     const table = document.getElementById('editableTable');
     if (!table) return;
 
-    // Escape key: switch to normal mode
-    if (e.key === 'Escape' && currentMode === 'insert') {
+    // Escape key: switch to normal mode from insert or visual
+    if (e.key === 'Escape' && (currentMode === 'insert' || currentMode === 'visual')) {
         e.preventDefault();
         switchMode('normal');
+        return;
+    }
+
+    // 'v' key: switch to visual mode (only in normal mode with focused cell)
+    if (e.key === 'v' && currentMode === 'normal' && focusedCell) {
+        e.preventDefault();
+        switchMode('visual');
         return;
     }
 
@@ -923,6 +969,12 @@ function handleGlobalKeydown(e) {
     if (e.key === 'i' && currentMode === 'normal' && focusedCell) {
         e.preventDefault();
         switchMode('insert');
+        return;
+    }
+
+    // Visual mode operations
+    if (currentMode === 'visual') {
+        handleVisualModeKeydown(e);
         return;
     }
 
@@ -1042,6 +1094,11 @@ function makeCellsDraggable() {
  * Handle cell click
  */
 function handleCellClick(e) {
+    // Ignore clicks in visual mode
+    if (currentMode === 'visual') {
+        return;
+    }
+
     const cell = e.currentTarget;
     const row = parseInt(cell.dataset.row);
     const col = parseInt(cell.dataset.col);
@@ -1118,13 +1175,234 @@ function handleCellDragOver(e) {
 function handleCellDrop(e) {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const targetCell = e.currentTarget;
     if (!targetCell || !draggedCellData) return;
-    
+
     const targetRow = parseInt(targetCell.dataset.row);
     const targetCol = parseInt(targetCell.dataset.col);
-    
+
     swapCells(draggedCellData.row, draggedCellData.col, targetRow, targetCol);
+}
+
+// ============================================
+// Visual Mode Functionality
+// ============================================
+
+/**
+ * Handle keyboard events in visual mode
+ */
+function handleVisualModeKeydown(e) {
+    // Navigation keys - expand selection
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'h', 'j', 'k', 'l', 'Tab'].includes(e.key)) {
+        e.preventDefault();
+        handleVisualModeNavigation(e);
+        return;
+    }
+
+    // d: Delete selected cells
+    if (e.key === 'd') {
+        e.preventDefault();
+        deleteVisualSelection();
+        return;
+    }
+
+    // x: Cut selected cells
+    if (e.key === 'x') {
+        e.preventDefault();
+        cutVisualSelection();
+        return;
+    }
+
+    // y: Yank (copy) selected cells
+    if (e.key === 'y') {
+        e.preventDefault();
+        yankVisualSelection();
+        return;
+    }
+
+    // p: Paste from clipboard memory
+    if (e.key === 'p') {
+        e.preventDefault();
+        pasteFromMemory();
+        return;
+    }
+}
+
+/**
+ * Handle navigation in visual mode (expand selection)
+ */
+function handleVisualModeNavigation(e) {
+    let nextRow = visualEndRow;
+    let nextCol = visualEndCol;
+
+    switch(e.key) {
+        case 'ArrowUp':
+        case 'k':
+            nextRow = visualEndRow - 1;
+            break;
+        case 'ArrowDown':
+        case 'j':
+            nextRow = visualEndRow + 1;
+            break;
+        case 'ArrowLeft':
+        case 'h':
+            nextCol = visualEndCol - 1;
+            break;
+        case 'ArrowRight':
+        case 'l':
+            nextCol = visualEndCol + 1;
+            break;
+        case 'Tab':
+            if (e.shiftKey) {
+                nextCol = visualEndCol - 1;
+            } else {
+                nextCol = visualEndCol + 1;
+            }
+            break;
+    }
+
+    // Validate coordinates
+    if (nextCol < 0 || nextCol >= tableData.headers.length) return;
+    if (nextRow < -1 || nextRow >= tableData.rows.length) return;
+
+    visualEndRow = nextRow;
+    visualEndCol = nextCol;
+    updateVisualSelection();
+}
+
+/**
+ * Update visual selection display
+ */
+function updateVisualSelection() {
+    // Clear previous selection
+    document.querySelectorAll('.visual-selected').forEach(cell => {
+        cell.classList.remove('visual-selected');
+    });
+
+    if (visualStartRow === null || visualEndRow === null) return;
+
+    // Calculate selection bounds
+    const minRow = Math.min(visualStartRow, visualEndRow);
+    const maxRow = Math.max(visualStartRow, visualEndRow);
+    const minCol = Math.min(visualStartCol, visualEndCol);
+    const maxCol = Math.max(visualStartCol, visualEndCol);
+
+    // Apply selection to cells
+    for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+            const cell = findCell(row, col);
+            if (cell) {
+                cell.classList.add('visual-selected');
+            }
+        }
+    }
+}
+
+/**
+ * Clear visual selection
+ */
+function clearVisualSelection() {
+    visualStartRow = null;
+    visualStartCol = null;
+    visualEndRow = null;
+    visualEndCol = null;
+
+    document.querySelectorAll('.visual-selected').forEach(cell => {
+        cell.classList.remove('visual-selected');
+    });
+}
+
+/**
+ * Delete content of visually selected cells
+ */
+function deleteVisualSelection() {
+    const minRow = Math.min(visualStartRow, visualEndRow);
+    const maxRow = Math.max(visualStartRow, visualEndRow);
+    const minCol = Math.min(visualStartCol, visualEndCol);
+    const maxCol = Math.max(visualStartCol, visualEndCol);
+
+    for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= maxCol; col++) {
+            if (row === -1) {
+                tableData.headers[col] = '';
+            } else {
+                tableData.rows[row][col] = '';
+            }
+        }
+    }
+
+    renderTable();
+    updateMarkdown();
+    switchMode('normal');
+}
+
+/**
+ * Cut (delete and copy to memory) visually selected cells
+ */
+function cutVisualSelection() {
+    yankVisualSelection();
+    deleteVisualSelection();
+}
+
+/**
+ * Yank (copy to memory) visually selected cells
+ */
+function yankVisualSelection() {
+    const minRow = Math.min(visualStartRow, visualEndRow);
+    const maxRow = Math.max(visualStartRow, visualEndRow);
+    const minCol = Math.min(visualStartCol, visualEndCol);
+    const maxCol = Math.max(visualStartCol, visualEndCol);
+
+    clipboardMemory = [];
+
+    for (let row = minRow; row <= maxRow; row++) {
+        const rowData = [];
+        for (let col = minCol; col <= maxCol; col++) {
+            if (row === -1) {
+                rowData.push(tableData.headers[col]);
+            } else {
+                rowData.push(tableData.rows[row][col]);
+            }
+        }
+        clipboardMemory.push(rowData);
+    }
+
+    switchMode('normal');
+}
+
+/**
+ * Paste from clipboard memory
+ */
+function pasteFromMemory() {
+    if (!clipboardMemory || clipboardMemory.length === 0) {
+        switchMode('normal');
+        return;
+    }
+
+    // Determine paste starting position (top-left of selection)
+    const minRow = Math.min(visualStartRow, visualEndRow);
+    const minCol = Math.min(visualStartCol, visualEndCol);
+
+    // Paste data
+    for (let i = 0; i < clipboardMemory.length; i++) {
+        const targetRow = minRow + i;
+        if (targetRow >= tableData.rows.length) break; // Don't paste beyond table
+
+        for (let j = 0; j < clipboardMemory[i].length; j++) {
+            const targetCol = minCol + j;
+            if (targetCol >= tableData.headers.length) break; // Don't paste beyond table
+
+            if (targetRow === -1) {
+                tableData.headers[targetCol] = clipboardMemory[i][j];
+            } else {
+                tableData.rows[targetRow][targetCol] = clipboardMemory[i][j];
+            }
+        }
+    }
+
+    renderTable();
+    updateMarkdown();
+    switchMode('normal');
 }
 
